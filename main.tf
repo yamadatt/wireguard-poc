@@ -54,7 +54,7 @@ resource "aws_instance" "poc_instance" {
   instance_type   = "t3.nano"
   subnet_id       = aws_subnet.public_subnet.id
   security_groups = [aws_security_group.poc_instance_sg.id]
-key_name                = "radio"
+  key_name        = "radio"
   tags = {
     Name = "PocEC2Instance"
   }
