@@ -1,0 +1,58 @@
+name: 'Terraform'
+
+'on':
+  push:
+    branches:
+      - main
+  pull_request:  
+permissions:
+  contents: read
+env:
+  tf_actions_working_dir: "."
+
+
+defaults:
+  run:
+    working-directory: '${{ env.tf_actions_working_dir }}'
+      
+
+jobs:
+  terraform:
+    name: Terraform
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    permissions:
+      pull-requests: write
+      id-token: write
+      contents: read
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: hashicorp/setup-terraform@v3
+
+    - name: Terraform fmt
+      id: fmt
+      run: terraform fmt -check
+      continue-on-error: true
+    - name: Terraform Init
+      id: init
+      run: terraform init
+    - name: Terraform Validate
+      id: validate
+      run: terraform validate -no-color
+    - name: Terraform Plan
+      id: plan
+      run: terraform plan -no-color
+      continue-on-error: true
+    - uses: actions/github-script@v6
+      if: github.event_name == 'pull_request'
+      env:
+        PLAN: |-
+          terraform
+          ${{ steps.plan.outputs.stdout }}
+      with:
+        github-token: '${{ secrets.GITHUB_TOKEN }}'
+        script: "const output = `#### Terraform Format and Style \U0001F58C\\`${{ steps.fmt.outcome }}\\`\n#### Terraform Initialization ⚙️\\`${{ steps.init.outcome }}\\`\n#### Terraform Validation \U0001F916\\`${{ steps.validate.outcome }}\\`\n<details><summary>Validation Output</summary>\n\n\\`\\`\\`\\n\n${{ steps.validate.outputs.stdout }}\n\\`\\`\\`\n\n</details>\n\n#### Terraform Plan \U0001F4D6\\`${{ steps.plan.outcome }}\\`\n\n<details><summary>Show Plan</summary>\n\n\\`\\`\\`\\n\n${process.env.PLAN}\n\\`\\`\\`\n\n</details>\n\n*Pusher: @${{ github.actor }}, Action: \\`${{ github.event_name }}\\`, Working Directory: \\`${{ env.tf_actions_working_dir }}\\`, Workflow: \\`${{ github.workflow }}\\`*`;\n\ngithub.rest.issues.createComment({\n  issue_number: context.issue.number,\n  owner: context.repo.owner,\n  repo: context.repo.repo,\n  body: output\n})\n"
