@@ -55,11 +55,47 @@ resource "aws_instance" "poc_instance" {
   subnet_id       = aws_subnet.public_subnet.id
   security_groups = [aws_security_group.poc_instance_sg.id]
   key_name        = "radio"
+
+  # provisioner "remote-exec" {
+  #   connection {
+  #     type = "ssh"
+  #     user = "ubuntu"
+  #     host = self.public_ip
+  #     # private_key = file("/home/yamadatt/git/wireguard-poc/rario.pem")
+  #   }
+  #   inline = [
+  #     "sudo yum -y install nginx",
+  #     "sudo service nginx start",
+  #     "sudo chkconfig nginx on"
+  #   ]
+  # }
+
+
+#  provisioner "local-exec" {
+#    command = "sudo apt update;sudo apt upgrade;sudo timedatectl set-timezone Asia/Tokyo;sudo apt install wireguard wireguard-tools -y"
+#  }
+
   tags = {
     Name = "PocEC2Instance"
   }
 }
 
+
+resource "aws_instance" "poc_instance_cli" {
+  ami             = "ami-09a81b370b76de6a2" #Ubuntu (intel)
+  instance_type   = "t3.nano"
+  subnet_id       = aws_subnet.public_subnet.id
+  security_groups = [aws_security_group.poc_instance_sg.id]
+  key_name        = "radio"
+
+  # provisioner "local-exec" {
+  #   command = "sudo apt update;sudo apt upgrade;sudo timedatectl set-timezone Asia/Tokyo;sudo apt install wireguard wireguard-tools -y"
+  # }
+
+  tags = {
+    Name = "PocEC2InstanceClient"
+  }
+}
 
 resource "aws_security_group" "poc_instance_sg" {
   name   = "ec2-sg"
@@ -78,6 +114,15 @@ resource "aws_security_group_rule" "in_ssh" {
   security_group_id = aws_security_group.poc_instance_sg.id
 }
 
+resource "aws_security_group_rule" "in_wireguard" {
+  type              = "ingress"
+  from_port         = 0
+  to_port           = 51820
+  protocol          = "udp"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.poc_instance_sg.id
+}
+
 resource "aws_security_group_rule" "out_ip_any" {
   type              = "egress"
   from_port         = 0
@@ -87,8 +132,13 @@ resource "aws_security_group_rule" "out_ip_any" {
   security_group_id = aws_security_group.poc_instance_sg.id
 }
 
-
 output "server_public_ip" {
   description = "The public IP address assigned to the instanceue"
   value       = aws_instance.poc_instance.public_ip
+}
+
+
+output "client_public_ip" {
+  description = "The public IP address assigned to the instanceue"
+  value       = aws_instance.poc_instance_cli.public_ip
 }
